@@ -1,0 +1,14 @@
+cmake_minimum_required(VERSION 3.0.0)
+
+project(sqlite-download NONE)
+
+include(ExternalProject)
+ExternalProject_Add(sqlite
+  SOURCE_DIR        "${CMAKE_CURRENT_BINARY_DIR}/sqlite-src"
+  BINARY_DIR        "${CMAKE_CURRENT_BINARY_DIR}/sqlite-build"
+  URL               "https://www.sqlite.org/2019/sqlite-amalgamation-3290000.zip"
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND     ""
+  INSTALL_COMMAND   ""
+  TEST_COMMAND      ""
+)
