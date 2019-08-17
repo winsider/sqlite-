@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.0)
-project(sqlite++)
+project(ssqll)
 
 # Download and unpack sqlite at configure time
 configure_file(sqlite-download.in sqlite-download/CMakeLists.txt)

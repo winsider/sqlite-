@@ -1,3 +1,3 @@
-# Sqlite++ - Simple C++ wrapper for sqlite
+# SSQLL - Simple Sqlite C++ wrapper
 
 Nothing here.

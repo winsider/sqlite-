@@ -1,6 +1,6 @@
 #pragma warning(disable: 26495) // Google test warnings
 #include <gtest/gtest.h>
-#include "sqlite++.h"
+#include "ssqll.h"
 
 using namespace ltc;
 
