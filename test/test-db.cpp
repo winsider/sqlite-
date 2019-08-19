@@ -19,7 +19,7 @@ TEST(Sqlite_db, exec)
 	db.exec("CREATE TABLE IF NOT EXISTS test (id int, name varchar);");
 	db.exec("INSERT INTO test (id, name) values (1, 'Series 1')");
 	db.exec("INSERT INTO test (id, name) values (2, 'Serier 2')");
-	ltc::Sqlite_stmt qry(&db, "select * from test where id>=? and id<=?");
+	ltc::Sqlite_stmt qry = db.prepare("select * from test where id>=? and id<=?");
 	int found = 0;
 	for (auto it = qry.exec(1, 2); it != qry.end(); ++it)
 		++found;

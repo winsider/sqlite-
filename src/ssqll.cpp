@@ -82,7 +82,7 @@ int x_main()
 		//		return true;
 		//	});
 
-		ltc::Sqlite_stmt qry(&mydb, "select * from test where id>=? and id<=?");
+		ltc::Sqlite_stmt qry = mydb.prepare("select * from test where id>=? and id<=?");
 		for (auto it = qry.exec(1,2); it != qry.end(); ++it)
 			std::cout << " row id: " << it->column_int(0) << "\n";
 

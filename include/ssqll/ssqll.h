@@ -2,6 +2,7 @@
 #include <string>
 #include <functional>
 #include <vector>
+#include <memory>
 #include <sqlite3.h>
 
 namespace ltc
@@ -10,9 +11,17 @@ namespace ltc
 	class Sqlite_db;
 	class Sqlite_stmt;
 
+	struct SqlNull {};
+	constexpr SqlNull Null{};
+
 	class Sqlite_error final : public std::exception
 	{
 	public:
+		Sqlite_error(int result_code)
+			: m_result_code{ result_code }
+			, m_what{ sqlite3_errstr(result_code) }
+		{}
+
 		Sqlite_error(int result_code, std::string what)
 			: m_result_code{ result_code }
 			, m_what{ std::move(what) }
@@ -38,75 +47,15 @@ namespace ltc
 		std::string m_what;
 	};
 
-	class Sqlite_db final
-	{
-	public:
-		friend Sqlite_stmt;
-
-		using Callback = std::function<int(int, char**, char**)>;
-
-		Sqlite_db(const char* filename)
-		{
-			check_error(sqlite3_open(filename, &m_db));
-		}
-
-		~Sqlite_db() noexcept
-		{
-			sqlite3_close(m_db);
-		}
-
-		void exec(const char* sql, Callback callback)
-		{
-			char* errmsg;
-			check_error(sqlite3_exec(m_db, sql, exec_cb, &callback, &errmsg), errmsg);
-		}
-
-		void exec(const char* sql)
-		{
-			char* errmsg;
-			check_error(sqlite3_exec(m_db, sql, exec_cb, nullptr, &errmsg), errmsg);
-		}
-
-		sqlite3* handle() const
-		{
-			return m_db;
-		}
-
-	private:
-
-		static void check_error(int result_code, char*& msg_ptr, int expected_value = SQLITE_OK)
-		{
-			if (result_code != expected_value && msg_ptr != nullptr)
-			{
-				std::string err_msg{ msg_ptr };
-				sqlite3_free(msg_ptr);
-				msg_ptr = nullptr;
-				throw Sqlite_error(result_code, err_msg);
-			}
-		}
-
-		void check_error(int result_code, int expected_value = SQLITE_OK) const
-		{
-			if (result_code != expected_value)
-				throw Sqlite_error(result_code, sqlite3_errmsg(m_db));
-		}
-
-		static int exec_cb(void* data, int columns, char** values, char** names)
-		{
-			std::function<bool(int, char**, char**)> cb = *static_cast<std::function<bool(int, char**, char**)>*>(data);
-			return cb(columns, values, names);
-		}
-
-		sqlite3* m_db;
-	};
-
 
 	class Sqlite_stmt final
 	{
+		using sqlite3_stmt_ptr = std::shared_ptr<sqlite3_stmt>;
+
 	public:
 		sqlite3_stmt * handle() const
 		{
-			return m_stmt;
+			return m_stmt.get();
 		}
 
 		class row final
@@ -114,13 +63,13 @@ namespace ltc
 		public:
 			int column_int(int col) const
 			{
-				return sqlite3_column_int(m_stmt, col);
+				return sqlite3_column_int(m_stmt.get(), col);
 			}
 
 		private:
 			friend Sqlite_stmt;
-			row(sqlite3_stmt* stmt) : m_stmt(stmt) {}
-			sqlite3_stmt* m_stmt;
+			row(sqlite3_stmt_ptr stmt) : m_stmt(std::move(stmt)) {}
+			sqlite3_stmt_ptr m_stmt;
 		};
 
 		class row_iterator final
@@ -165,26 +114,26 @@ namespace ltc
 				m_result_code = SQLITE_DONE;
 			}
 
-			row_iterator(sqlite3_stmt* stmt) : m_stmt{ stmt }, m_row{ stmt }
+			row_iterator(sqlite3_stmt_ptr stmt) : m_stmt{ std::move(stmt) }, m_row{ stmt }
 			{
 				step();
 			}
 
 			void step()
 			{
-				if (m_stmt == nullptr)
+				if (!m_stmt)
 					throw std::logic_error("Calling result_iterator after it's done.");
 				
-				m_result_code = sqlite3_step(m_stmt);
+				m_result_code = sqlite3_step(m_stmt.get());
 				
 				if (m_result_code == SQLITE_DONE)
-					m_stmt = nullptr;
+					m_stmt.reset();
 				else if (m_result_code != SQLITE_ROW)
 					throw Sqlite_error(m_result_code, sqlite3_errstr(m_result_code));
 			}
 
 			row m_row;
-			sqlite3_stmt * m_stmt;
+			std::shared_ptr<sqlite3_stmt> m_stmt;
 			int m_result_code;
 		};
 
@@ -194,15 +143,10 @@ namespace ltc
 			return end;
 		}
 
-		Sqlite_stmt(const Sqlite_db* db, const std::string& sql)
+		Sqlite_stmt(sqlite3_stmt* stmt) : m_stmt{ stmt, sqlite3_finalize }
 		{
-			db->check_error(sqlite3_prepare_v2(db->handle(), sql.c_str(), sql.size() + 1, &m_stmt, nullptr));
 		}
 
-		~Sqlite_stmt() noexcept
-		{
-			sqlite3_finalize(m_stmt);
-		}
 
 		row_iterator exec()
 		{
@@ -234,50 +178,132 @@ namespace ltc
 
 		void bind(int c, short i)
 		{
-			sqlite3_bind_int(m_stmt, c, i);
+			sqlite3_bind_int(m_stmt.get(), c, i);
 		}
 
 		void bind(int c, int i)
 		{
-			sqlite3_bind_int(m_stmt, c, i);
+			sqlite3_bind_int(m_stmt.get(), c, i);
 		}
 
 		void bind(int c, long v)
 		{
-			sqlite3_bind_int64(m_stmt, c, v);
+			sqlite3_bind_int64(m_stmt.get(), c, v);
 		}
 
 		void bind(int c, long long v)
 		{
-			sqlite3_bind_int64(m_stmt, c, v);
+			sqlite3_bind_int64(m_stmt.get(), c, v);
 		}
 
 		void bind(int c, float v)
 		{
-			sqlite3_bind_double(m_stmt, c, v);
+			sqlite3_bind_double(m_stmt.get(), c, v);
 		}
 
 		void bind(int c, double v)
 		{
-			sqlite3_bind_double(m_stmt, c, v);
+			sqlite3_bind_double(m_stmt.get(), c, v);
 		}
 
 		void bind(int c, const std::string& v)
 		{
-			sqlite3_bind_text(m_stmt, c, v.c_str(), v.length(), nullptr);
+			sqlite3_bind_text(m_stmt.get(), c, v.c_str(), v.length(), nullptr);
 		}
 
-		// TODO: Define own type for NULL?
-		void bind(int c, std::nullptr_t n)
+		void bind(int c, SqlNull n)
 		{
-			sqlite3_bind_null(m_stmt, c);
+			sqlite3_bind_null(m_stmt.get(), c);
 		}
 
 		void bind(int c, const std::vector<unsigned char>& v)
 		{
-			sqlite3_bind_blob(m_stmt, c, v.data(), v.size(), nullptr);
+			sqlite3_bind_blob(m_stmt.get(), c, v.data(), v.size(), nullptr);
 		}
 
-		sqlite3_stmt* m_stmt{};
+		sqlite3_stmt_ptr m_stmt;
 	};
+
+	class Sqlite_db final
+	{
+	public:
+		using Callback = std::function<int(int, char**, char**)>;
+
+		Sqlite_db(const char* filename)
+		{
+			open(filename);
+		}
+
+		void open(const char* filename)
+		{
+			sqlite3* db;
+			check_error(sqlite3_open(filename, &db));
+			m_db.reset(db, close_db);
+		}
+
+		void close()
+		{
+			m_db.reset();
+		}
+
+		void exec(const char* sql, Callback callback)
+		{
+			char* errmsg;
+			check_error(sqlite3_exec(m_db.get(), sql, exec_cb, &callback, &errmsg), errmsg);
+		}
+
+		void exec(const char* sql)
+		{
+			char* errmsg;
+			check_error(sqlite3_exec(m_db.get(), sql, exec_cb, nullptr, &errmsg), errmsg);
+		}
+
+		Sqlite_stmt prepare(const std::string sql)
+		{
+			sqlite3_stmt* stmt;
+			check_error(sqlite3_prepare_v2(m_db.get(), sql.c_str(), sql.size() + 1, &stmt, nullptr));
+			return Sqlite_stmt{ stmt };
+		}
+
+		sqlite3* handle() const
+		{
+			return m_db.get();
+		}
+
+	private:
+
+		static void check_error(int result_code, char*& msg_ptr, int expected_value = SQLITE_OK)
+		{
+			if (result_code != expected_value && msg_ptr != nullptr)
+			{
+				std::string err_msg{ msg_ptr };
+				sqlite3_free(msg_ptr);
+				msg_ptr = nullptr;
+				throw Sqlite_error(result_code, err_msg);
+			}
+		}
+
+		void check_error(int result_code, int expected_value = SQLITE_OK) const
+		{
+			if (result_code != expected_value)
+				throw Sqlite_error(result_code, sqlite3_errmsg(m_db.get()));
+		}
+
+		static int exec_cb(void* data, int columns, char** values, char** names)
+		{
+			std::function<bool(int, char**, char**)> cb = *static_cast<std::function<bool(int, char**, char**)>*>(data);
+			return cb(columns, values, names);
+		}
+
+		static void close_db(sqlite3* db)
+		{
+			const auto result_code = sqlite3_close(db);
+			if (result_code != SQLITE_OK)
+				throw Sqlite_error(result_code);
+		}
+
+		std::shared_ptr<sqlite3> m_db;
+	};
+
+
 }
