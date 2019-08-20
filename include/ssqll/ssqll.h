@@ -67,14 +67,19 @@ namespace ltc
 
 		class row final
 		{
+			friend row_iterator;
+
 		public:
+			row() = delete;
+			row(const row&) = default;
+			row(row&&) = delete;
+
 			int column_int(int col) const
 			{
 				return sqlite3_column_int(m_stmt.get(), col);
 			}
 
 		private:
-			friend Sqlite_stmt;
 			row(sqlite3_stmt_ptr stmt) : m_stmt(std::move(stmt)) {}
 			sqlite3_stmt_ptr m_stmt;
 		};

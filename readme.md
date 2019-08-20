@@ -1,3 +1,4 @@
 # SSQLL - Simple Sqlite C++ wrapper
 
-Nothing here.
+Roadmap:
+- Check for valid handle in row
