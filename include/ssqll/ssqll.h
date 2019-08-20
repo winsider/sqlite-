@@ -17,11 +17,6 @@ namespace ltc
 	class Sqlite_error final : public std::exception
 	{
 	public:
-		Sqlite_error(int result_code)
-			: m_result_code{ result_code }
-			, m_what{ sqlite3_errstr(result_code) }
-		{}
-
 		Sqlite_error(int result_code, std::string what)
 			: m_result_code{ result_code }
 			, m_what{ std::move(what) }
@@ -51,8 +46,20 @@ namespace ltc
 	class Sqlite_stmt final
 	{
 		using sqlite3_stmt_ptr = std::shared_ptr<sqlite3_stmt>;
+		class result_range;
+		class row_iterator;
+		class row;
 
 	public:
+
+		Sqlite_stmt() = default;
+		Sqlite_stmt(const Sqlite_stmt&) = default;
+		Sqlite_stmt(Sqlite_stmt&&) = default;
+		~Sqlite_stmt() = default;
+
+		Sqlite_stmt& operator=(const Sqlite_stmt&) = default;
+		Sqlite_stmt& operator=(Sqlite_stmt&&) = default;
+
 		sqlite3_stmt * handle() const
 		{
 			return m_stmt.get();
@@ -107,7 +114,7 @@ namespace ltc
 			}
 
 		private:
-			friend Sqlite_stmt;
+			friend result_range;
 
 			row_iterator() : m_stmt{ nullptr }, m_row{ nullptr }
 			{
@@ -137,31 +144,50 @@ namespace ltc
 			int m_result_code;
 		};
 
-		const row_iterator end() const
+		class result_range final
 		{
-			static row_iterator end{};
-			return end;
-		}
+			friend Sqlite_stmt;
 
-		Sqlite_stmt(sqlite3_stmt* stmt) : m_stmt{ stmt, sqlite3_finalize }
+		public:
+			result_range() = default;
+			result_range(const result_range&) = default;
+			result_range(result_range&&) = default;
+
+			result_range& operator=(const result_range&) = default;
+			result_range& operator=(result_range&&) = default;
+
+			row_iterator begin()
+			{
+				auto it = row_iterator(m_stmt);
+				m_stmt.reset();
+				return it;
+			}
+
+			const row_iterator end() const
+			{
+				static row_iterator end{};
+				return end;
+			}
+
+		private:
+			result_range(sqlite3_stmt_ptr stmt) : m_stmt{ std::move(stmt) } {}
+			sqlite3_stmt_ptr m_stmt;
+		};
+
+		result_range exec()
 		{
-		}
-
-
-		row_iterator exec()
-		{
-			return row_iterator(m_stmt);
+			return result_range(m_stmt);
 		}
 
 		template<typename T>
-		row_iterator exec(T t)
+		result_range exec(T t)
 		{
 			bind(1, t);
 			return exec();
 		}
 
 		template <typename T, typename... Args>
-		row_iterator exec(T t, Args... args)
+		result_range exec(T t, Args... args)
 		{
 			bind(1, t);
 			bind(2, args...);
@@ -169,11 +195,17 @@ namespace ltc
 		}
 
 	private:
+		friend Sqlite_db;
+
+		Sqlite_stmt(sqlite3_stmt* stmt) : m_stmt{ stmt, sqlite3_finalize }
+		{
+		}
+
 		template <typename T, typename... Args>
 		void bind(int c, T t, Args... args)
 		{
-			bind(c, t);
-			bind(++c, args...);
+			bind_impl(c, t);
+			bind_impl(++c, args...);
 		}
 
 		void bind(int c, short i)
@@ -229,16 +261,28 @@ namespace ltc
 	public:
 		using Callback = std::function<int(int, char**, char**)>;
 
+		Sqlite_db() = default;
+		Sqlite_db(const Sqlite_db&) = default;
+		Sqlite_db(Sqlite_db&&) = default;
+
 		Sqlite_db(const char* filename)
 		{
 			open(filename);
 		}
 
+		~Sqlite_db() = default;
+
+		Sqlite_db& operator=(const Sqlite_db&) = default;
+		Sqlite_db& operator=(Sqlite_db&&) = default;
+
 		void open(const char* filename)
 		{
+			if (m_db)
+				throw std::logic_error("Close database before calling open again.");
+
 			sqlite3* db;
 			check_error(sqlite3_open(filename, &db));
-			m_db.reset(db, close_db);
+			m_db.reset(db, sqlite3_close);
 		}
 
 		void close()
@@ -293,13 +337,6 @@ namespace ltc
 		{
 			std::function<bool(int, char**, char**)> cb = *static_cast<std::function<bool(int, char**, char**)>*>(data);
 			return cb(columns, values, names);
-		}
-
-		static void close_db(sqlite3* db)
-		{
-			const auto result_code = sqlite3_close(db);
-			if (result_code != SQLITE_OK)
-				throw Sqlite_error(result_code);
 		}
 
 		std::shared_ptr<sqlite3> m_db;
