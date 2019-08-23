@@ -5,9 +5,10 @@ set(SOURCES
 	${CMAKE_SOURCE_DIR}/include/ssqll/ssqll.h)
 
 add_library(ssqll ${SOURCES})
-target_include_directories(ssqll PRIVATE ${CMAKE_SOURCE_DIR}/include/ssqll)
+target_include_directories(ssqll PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(ssqll PRIVATE ${CMAKE_SOURCE_DIR}/build/sqlite-src)
 
+set_property(TARGET ssqll PROPERTY CXX_STANDARD 17)
 
 install(TARGETS ssqll 
 	LIBRARY DESTINATION lib

@@ -1,4 +1,5 @@
 #pragma once
+
 #include <string>
 #include <functional>
 #include <vector>
@@ -7,35 +8,23 @@
 
 namespace ltc
 {
-	class Sqlite_error;
-	class Sqlite_db;
-	class Sqlite_stmt;
+	/// Database NULL value
+	constexpr struct SqlNull {} Null;
 
-	struct SqlNull {};
-	constexpr SqlNull Null{};
+	/// Datatype for blobs
+	using Blob = std::vector<unsigned char>;
 
-	class Sqlite_error final : public std::exception
+
+	/**
+	 * Exception class for SQLITE error return codes 
+	 */
+	class Sqlite_err final : public std::exception
 	{
 	public:
-		Sqlite_error(int result_code, std::string what)
-			: m_result_code{ result_code }
-			, m_what{ std::move(what) }
-		{}
-
-		const char* what() const noexcept override
-		{
-			return m_what.c_str();
-		}
-
-		int error_code() const noexcept
-		{
-			return m_result_code;
-		}
-
-		const char* error_code_str() const noexcept
-		{
-			return sqlite3_errstr(m_result_code);
-		}
+		Sqlite_err(int result_code, std::string what);
+		const char* what() const noexcept override;
+		int error_code() const noexcept;
+		const char* error_code_str() const noexcept;
 
 	private:
 		int m_result_code;
@@ -43,112 +32,85 @@ namespace ltc
 	};
 
 
+    /**
+     * SQLite statemt wrapper
+     */
 	class Sqlite_stmt final
 	{
-		using sqlite3_stmt_ptr = std::shared_ptr<sqlite3_stmt>;
-		class result_range;
-		class row_iterator;
-		class row;
+    private:
+        using sqlite3_stmt_ptr = std::shared_ptr<sqlite3_stmt>;
 
 	public:
+        class result_range;
+        class row_iterator;
+        class row;
 
 		Sqlite_stmt() = default;
 		Sqlite_stmt(const Sqlite_stmt&) = default;
 		Sqlite_stmt(Sqlite_stmt&&) = default;
 		~Sqlite_stmt() = default;
-
 		Sqlite_stmt& operator=(const Sqlite_stmt&) = default;
 		Sqlite_stmt& operator=(Sqlite_stmt&&) = default;
 
-		sqlite3_stmt * handle() const
-		{
-			return m_stmt.get();
-		}
-
+        /**
+         * Result row wrapper
+         */
 		class row final
 		{
-			friend row_iterator;
+			friend class row_iterator;
 
 		public:
 			row() = delete;
 			row(const row&) = default;
+            ~row() = default;
 			row(row&&) = delete;
 
-			int column_int(int col) const
-			{
-				return sqlite3_column_int(m_stmt.get(), col);
-			}
+			int         as_int(int col) const;
+			long long   as_int64(int col) const;
+			double      as_double(int col) const;
+			std::string as_string(int col) const;
+			Blob        as_blob(int col) const;
+
+            int cols() const;
+            std::string name(int col) const;
+            std::string origin(int col) const;
+            std::string dbname(int col) const;
+            std::string table(int col) const;
 
 		private:
-			row(sqlite3_stmt_ptr stmt) : m_stmt(std::move(stmt)) {}
-			sqlite3_stmt_ptr m_stmt;
+			row(sqlite3_stmt_ptr stmt);
+            sqlite3_stmt* handle() const;
+            void reset();
+            sqlite3_stmt_ptr m_stmt;
 		};
 
+        /**
+         * Result row iterator
+         */
 		class row_iterator final
 		{
 		public:
-			bool operator==(const row_iterator& iter) const
-			{
-				return (iter.m_stmt == m_stmt && iter.m_result_code == m_result_code);
-			}
-
-			bool operator!=(const row_iterator& iter) const
-			{
-				return !(*this == iter);
-			}
-
-			row_iterator& operator++()
-			{
-				step();
-				return *this;
-			}
-
-			row* operator->()
-			{
-				if (m_result_code == SQLITE_ROW)
-					return &m_row;
-				else
-					throw std::logic_error("Dereference result iterator not allowed in this state.");
-			}
-			row& operator*()
-			{
-				if (m_result_code == SQLITE_ROW)
-					return m_row;
-				else
-					throw std::logic_error("Dereference result iterator not allowed in this state.");
-			}
+            bool operator==(const row_iterator& iter) const;
+            bool operator!=(const row_iterator& iter) const;
+            row_iterator& operator++();
+            row* operator->();
+            row& operator*();
 
 		private:
 			friend result_range;
 
-			row_iterator() : m_stmt{ nullptr }, m_row{ nullptr }
-			{
-				m_result_code = SQLITE_DONE;
-			}
-
-			row_iterator(sqlite3_stmt_ptr stmt) : m_stmt{ std::move(stmt) }, m_row{ stmt }
-			{
-				step();
-			}
-
-			void step()
-			{
-				if (!m_stmt)
-					throw std::logic_error("Calling result_iterator after it's done.");
-				
-				m_result_code = sqlite3_step(m_stmt.get());
-				
-				if (m_result_code == SQLITE_DONE)
-					m_stmt.reset();
-				else if (m_result_code != SQLITE_ROW)
-					throw Sqlite_error(m_result_code, sqlite3_errstr(m_result_code));
-			}
+            row_iterator();
+            row_iterator(sqlite3_stmt_ptr stmt);
+            void step();
+            sqlite3_stmt* handle() const;
 
 			row m_row;
-			std::shared_ptr<sqlite3_stmt> m_stmt;
 			int m_result_code;
 		};
 
+        /**
+         * Result wrapper
+         */
 		class result_range final
 		{
 			friend Sqlite_stmt;
@@ -157,32 +119,17 @@ namespace ltc
 			result_range() = default;
 			result_range(const result_range&) = default;
 			result_range(result_range&&) = default;
-
 			result_range& operator=(const result_range&) = default;
 			result_range& operator=(result_range&&) = default;
-
-			row_iterator begin()
-			{
-				auto it = row_iterator(m_stmt);
-				m_stmt.reset();
-				return it;
-			}
-
-			const row_iterator end() const
-			{
-				static row_iterator end{};
-				return end;
-			}
+            row_iterator begin();
+            const row_iterator end() const;
 
 		private:
 			result_range(sqlite3_stmt_ptr stmt) : m_stmt{ std::move(stmt) } {}
 			sqlite3_stmt_ptr m_stmt;
 		};
 
-		result_range exec()
-		{
-			return result_range(m_stmt);
-		}
+        result_range exec();
 
 		template<typename T>
 		result_range exec(T t)
@@ -200,11 +147,8 @@ namespace ltc
 		}
 
 	private:
-		friend Sqlite_db;
-
-		Sqlite_stmt(sqlite3_stmt* stmt) : m_stmt{ stmt, sqlite3_finalize }
-		{
-		}
+		friend class Sqlite_db;        
+		Sqlite_stmt(sqlite3_stmt* stmt);
 
 		template <typename T, typename... Args>
 		void bind(int c, T t, Args... args)
@@ -213,54 +157,25 @@ namespace ltc
 			bind_impl(++c, args...);
 		}
 
-		void bind(int c, short i)
-		{
-			sqlite3_bind_int(m_stmt.get(), c, i);
-		}
+		void bind(int c, short i);
+		void bind(int c, int i);
+		void bind(int c, long v);
+		void bind(int c, long long v);
+		void bind(int c, float v);
+		void bind(int c, double v);
+		void bind(int c, const std::string& v);
+        void bind(int c, const char* v);
+		void bind(int c, SqlNull n);
+		void bind(int c, const Blob& v);
 
-		void bind(int c, int i)
-		{
-			sqlite3_bind_int(m_stmt.get(), c, i);
-		}
-
-		void bind(int c, long v)
-		{
-			sqlite3_bind_int64(m_stmt.get(), c, v);
-		}
-
-		void bind(int c, long long v)
-		{
-			sqlite3_bind_int64(m_stmt.get(), c, v);
-		}
-
-		void bind(int c, float v)
-		{
-			sqlite3_bind_double(m_stmt.get(), c, v);
-		}
-
-		void bind(int c, double v)
-		{
-			sqlite3_bind_double(m_stmt.get(), c, v);
-		}
-
-		void bind(int c, const std::string& v)
-		{
-			sqlite3_bind_text(m_stmt.get(), c, v.c_str(), v.length(), nullptr);
-		}
-
-		void bind(int c, SqlNull n)
-		{
-			sqlite3_bind_null(m_stmt.get(), c);
-		}
-
-		void bind(int c, const std::vector<unsigned char>& v)
-		{
-			sqlite3_bind_blob(m_stmt.get(), c, v.data(), v.size(), nullptr);
-		}
-
+        sqlite3_stmt* handle() const;
 		sqlite3_stmt_ptr m_stmt;
 	};
 
+
+    /**
+     * SQLite database wrapper
+     */
 	class Sqlite_db final
 	{
 	public:
@@ -269,83 +184,30 @@ namespace ltc
 		Sqlite_db() = default;
 		Sqlite_db(const Sqlite_db&) = default;
 		Sqlite_db(Sqlite_db&&) = default;
-
-		Sqlite_db(const char* filename)
-		{
-			open(filename);
-		}
-
+        Sqlite_db(const char* filename);
 		~Sqlite_db() = default;
-
 		Sqlite_db& operator=(const Sqlite_db&) = default;
 		Sqlite_db& operator=(Sqlite_db&&) = default;
 
-		void open(const char* filename)
-		{
-			if (m_db)
-				throw std::logic_error("Close database before calling open again.");
-
-			sqlite3* db;
-			check_error(sqlite3_open(filename, &db));
-			m_db.reset(db, sqlite3_close);
-		}
-
-		void close()
-		{
-			m_db.reset();
-		}
-
-		void exec(const char* sql, Callback callback)
-		{
-			char* errmsg;
-			check_error(sqlite3_exec(m_db.get(), sql, exec_cb, &callback, &errmsg), errmsg);
-		}
-
-		void exec(const char* sql)
-		{
-			char* errmsg;
-			check_error(sqlite3_exec(m_db.get(), sql, exec_cb, nullptr, &errmsg), errmsg);
-		}
-
-		Sqlite_stmt prepare(const std::string sql)
-		{
-			sqlite3_stmt* stmt;
-			check_error(sqlite3_prepare_v2(m_db.get(), sql.c_str(), sql.size() + 1, &stmt, nullptr));
-			return Sqlite_stmt{ stmt };
-		}
-
-		sqlite3* handle() const
-		{
-			return m_db.get();
-		}
+        void open(const char* filename);
+        void close();
+        void exec(const char* sql, Callback callback);
+        void exec(const char* sql);
+        Sqlite_stmt prepare(const std::string sql);
+        bool is_open() const;
+        int changes() const;
+        int total_changes() const;
 
 	private:
-
-		static void check_error(int result_code, char*& msg_ptr, int expected_value = SQLITE_OK)
-		{
-			if (result_code != expected_value && msg_ptr != nullptr)
-			{
-				std::string err_msg{ msg_ptr };
-				sqlite3_free(msg_ptr);
-				msg_ptr = nullptr;
-				throw Sqlite_error(result_code, err_msg);
-			}
-		}
-
-		void check_error(int result_code, int expected_value = SQLITE_OK) const
-		{
-			if (result_code != expected_value)
-				throw Sqlite_error(result_code, sqlite3_errmsg(m_db.get()));
-		}
-
-		static int exec_cb(void* data, int columns, char** values, char** names)
-		{
-			std::function<bool(int, char**, char**)> cb = *static_cast<std::function<bool(int, char**, char**)>*>(data);
-			return cb(columns, values, names);
-		}
-
+        sqlite3* handle() const;
+        void check_error(int result_code, int expected_value = SQLITE_OK) const;
 		std::shared_ptr<sqlite3> m_db;
 	};
 
 
+#ifdef SQLITE_ENABLE_COLUMN_METADATA
+    constexpr auto ColumnMetadataEnabled = false;
+#else
+    constexpr auto ColumnMetadataEnabled = false;
+#endif
 }
