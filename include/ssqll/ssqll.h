@@ -128,7 +128,7 @@ namespace ltc
 			result_range(sqlite3_stmt_ptr stmt) : m_stmt{ std::move(stmt) } {}
 			sqlite3_stmt_ptr m_stmt;
 		};
-
+       
         result_range exec();
 
 		template<typename T>
