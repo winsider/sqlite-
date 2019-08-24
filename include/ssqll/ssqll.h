@@ -14,6 +14,14 @@ namespace ltc
 	/// Datatype for blobs
 	using Blob = std::vector<unsigned char>;
 
+    enum Datatype
+    {
+        db_integer,
+        db_text,
+        db_float,
+        db_blob,
+        db_null
+    };
 
 	/**
 	 * Exception class for SQLITE error return codes 
@@ -73,7 +81,7 @@ namespace ltc
 			Blob        as_blob(int col) const;
 
             bool        is_null(int col) const;
-            
+
             int cols() const;
             std::string name(int col) const;
 
