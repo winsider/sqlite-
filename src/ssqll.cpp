@@ -151,6 +151,11 @@ Blob Sqlite_stmt::row::as_blob(int col) const
 	return (buf && len) ? Blob(buf, buf + len) : Blob{};
 }
 
+bool Sqlite_stmt::row::is_null(int col) const
+{
+    return sqlite3_column_type(handle(), col) == SQLITE_NULL;
+}
+
 void Sqlite_stmt::row::reset()
 {
     m_stmt.reset();

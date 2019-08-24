@@ -72,6 +72,8 @@ namespace ltc
 			std::string as_string(int col) const;
 			Blob        as_blob(int col) const;
 
+            bool        is_null(int col) const;
+            
             int cols() const;
             std::string name(int col) const;
 

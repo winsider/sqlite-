@@ -48,11 +48,31 @@ TEST(Sqlite_stmt, exec_three_par)
     insert.exec(1, "One", 1.0f);
     insert.exec(2, "Two", 2.0f);
     int found = 0;
-    for (const auto& row : db.prepare("select * from test where id>=? and id<=?").exec_range(1, 2))
-    {
+    for (const auto& row : db
+        .prepare("select * from test where id>=? and id<=? and value<?")
+        .exec_range(1, 2, 10.0f))
         found++;
-    }
     EXPECT_EQ(found, 2);
 }
 
+TEST(Sqlite_stmt, is_null)
+{
+    remove("test.db");
+    Sqlite_db db("test.db");
+    db.exec("CREATE TABLE IF NOT EXISTS test (id int, name varchar, value real);");
+    auto insert = db.prepare("INSERT INTO test (id, name, value) values (?, ?, ?)");
+    insert.exec(1, "One", Null);
+    insert.exec(2, "Two", Null);
+    int found = 0;
+    int found_nulls = 0;
+    for (const auto& row : db
+        .prepare("select * from test where id>=? and id<=? and value is null")
+        .exec_range(1, 2))
+    {
+        found++;
+        if (row.is_null(2))
+            found_nulls++;
+    }
+    EXPECT_EQ(found, 2);
+}
 
