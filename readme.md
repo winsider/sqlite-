@@ -2,3 +2,4 @@
 
 Roadmap:
 - Check for valid handle in row
+- Check return codes in statement methods
