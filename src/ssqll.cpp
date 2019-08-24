@@ -2,18 +2,11 @@
 //
 
 #include <iostream>
+#include <string.h>
 #include "ssqll/ssqll.h"
 
 using namespace ltc;
 
-
-class missing_metadata_funcs : std::logic_error
-{
-public:
-    missing_metadata_funcs()
-        : std::logic_error("Column metadata functions are not enabled. Use #define SQLITE_ENABLE_COLUMN_METADATA to enable these in sqlite.")
-    {}
-};
 
 class invalid_operation : std::logic_error
 {
@@ -95,29 +88,26 @@ std::string Sqlite_stmt::row::name(int col) const
     return std::string{ sqlite3_column_name(handle(), col) };
 }
 
+#ifdef SQLITE_ENABLE_COLUMN_METADATA
 std::string Sqlite_stmt::row::origin(int col) const
 {
-    if constexpr (ColumnMetadataEnabled)
-        return std::string{ sqlite3_column_origin_name(handle(), col) };
-    else
-        throw missing_metadata_funcs{};
+    return std::string{ sqlite3_column_origin_name(handle(), col) };
 }
+#endif
 
+#ifdef SQLITE_ENABLE_COLUMN_METADATA
 std::string Sqlite_stmt::row::dbname(int col) const
 {
-    if constexpr (ColumnMetadataEnabled)   
-        return std::string{ sqlite3_column_database_name(handle(), col) };
-    else
-        throw missing_metadata_funcs{};
+    return std::string{ sqlite3_column_database_name(handle(), col) };
 }
+#endif
 
+#ifdef SQLITE_ENABLE_COLUMN_METADATA
 std::string Sqlite_stmt::row::table(int col) const
 {
-    if constexpr (ColumnMetadataEnabled)
-        return std::string{ sqlite3_column_table_name(handle(), col) };
-    else
-        throw missing_metadata_funcs{};
+    return std::string{ sqlite3_column_table_name(handle(), col) };
 }
+#endif
 
 int Sqlite_stmt::row::as_int(int col) const
 {

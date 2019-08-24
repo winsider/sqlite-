@@ -73,9 +73,12 @@ namespace ltc
 
             int cols() const;
             std::string name(int col) const;
+
+#ifdef SQLITE_ENABLE_COLUMN_METADATA
             std::string origin(int col) const;
             std::string dbname(int col) const;
             std::string table(int col) const;
+#endif
 
 		private:
 			row(sqlite3_stmt_ptr stmt);
@@ -203,11 +206,4 @@ namespace ltc
         void check_error(int result_code, int expected_value = SQLITE_OK) const;
 		std::shared_ptr<sqlite3> m_db;
 	};
-
-
-#ifdef SQLITE_ENABLE_COLUMN_METADATA
-    constexpr auto ColumnMetadataEnabled = false;
-#else
-    constexpr auto ColumnMetadataEnabled = false;
-#endif
 }
