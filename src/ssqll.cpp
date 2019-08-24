@@ -18,6 +18,12 @@ public:
 
 // Sqlite_err
 
+Sqlite_err::Sqlite_err(int result_code)
+    : m_result_code{ result_code }
+    , m_what{ error_code_str() }
+{
+}
+
 Sqlite_err::Sqlite_err(int result_code, std::string what)
 		: m_result_code{ result_code }
 		, m_what{ std::move(what) }
@@ -62,7 +68,14 @@ void Sqlite_stmt::bind(int c, const char* v)            { sqlite3_bind_text(hand
 void Sqlite_stmt::bind(int c, SqlNull n)		        { sqlite3_bind_null(handle(), c); }
 void Sqlite_stmt::bind(int c, const Blob& v)	        { sqlite3_bind_blob(handle(), c, v.data(), v.size(), nullptr); }
 
-Sqlite_stmt::result_range Sqlite_stmt::exec()
+void Sqlite_stmt::exec()
+{
+    const int result_code = sqlite3_step(handle());
+    if (result_code != SQLITE_DONE)
+        throw Sqlite_err(result_code);
+}
+
+Sqlite_stmt::result_range Sqlite_stmt::exec_range()
 {
     return result_range(m_stmt);
 }

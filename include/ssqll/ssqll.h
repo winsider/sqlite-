@@ -21,6 +21,7 @@ namespace ltc
 	class Sqlite_err final : public std::exception
 	{
 	public:
+        Sqlite_err(int result_code);
 		Sqlite_err(int result_code, std::string what);
 		const char* what() const noexcept override;
 		int error_code() const noexcept;
@@ -131,22 +132,39 @@ namespace ltc
 			result_range(sqlite3_stmt_ptr stmt) : m_stmt{ std::move(stmt) } {}
 			sqlite3_stmt_ptr m_stmt;
 		};
-       
-        result_range exec();
+
+        void exec();
+        
+        template<typename T>
+        void exec(T t)
+        {
+            bind(1, t);
+            exec();
+        }
+
+        template<typename T, typename... Args>
+        void exec(T t, Args... args)
+        {
+            bind(1, t);
+            bind(2, args...);
+            exec();
+        }
+
+        result_range exec_range();
 
 		template<typename T>
-		result_range exec(T t)
+		result_range exec_range(T t)
 		{
 			bind(1, t);
-			return exec();
+			return exec_range();
 		}
 
 		template <typename T, typename... Args>
-		result_range exec(T t, Args... args)
+		result_range exec_range(T t, Args... args)
 		{
 			bind(1, t);
 			bind(2, args...);
-			return exec();
+			return exec_range();
 		}
 
 	private:
@@ -156,8 +174,8 @@ namespace ltc
 		template <typename T, typename... Args>
 		void bind(int c, T t, Args... args)
 		{
-			bind_impl(c, t);
-			bind_impl(++c, args...);
+			bind(c, t);
+			bind(++c, args...);
 		}
 
 		void bind(int c, short i);
