@@ -76,3 +76,23 @@ TEST(Sqlite_stmt, is_null)
     EXPECT_EQ(found, 2);
 }
 
+TEST(Sqlite_stmt, type)
+{
+    remove("test.db");
+    Sqlite_db db("test.db");
+    db.exec("CREATE TABLE IF NOT EXISTS test (id int, name varchar, value real);");
+    auto insert = db.prepare("INSERT INTO test (id, name, value) values (?, ?, ?)");
+    insert.exec(1, "One", Null);
+    insert.exec(2, "Two", Null);
+    int found = 0;
+    for (const auto& row : db
+        .prepare("select * from test where id>=? and id<=? and value is null")
+        .exec_range(1, 2))
+    {
+        found++;
+        EXPECT_EQ(row.type(0), Datatype::db_integer);
+        EXPECT_EQ(row.type(1), Datatype::db_text);
+        EXPECT_EQ(row.type(2), Datatype::db_null);
+    }
+    EXPECT_EQ(found, 2);
+}

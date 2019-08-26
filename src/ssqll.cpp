@@ -156,6 +156,11 @@ bool Sqlite_stmt::row::is_null(int col) const
     return sqlite3_column_type(handle(), col) == SQLITE_NULL;
 }
 
+Datatype Sqlite_stmt::row::type(int col) const
+{
+    return static_cast<Datatype>(sqlite3_column_type(handle(), col));
+}
+
 void Sqlite_stmt::row::reset()
 {
     m_stmt.reset();

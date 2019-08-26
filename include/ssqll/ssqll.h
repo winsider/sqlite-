@@ -14,13 +14,14 @@ namespace ltc
 	/// Datatype for blobs
 	using Blob = std::vector<unsigned char>;
 
+    /// Enum mapping to SQLITE datatype constants
     enum Datatype
     {
-        db_integer,
-        db_text,
-        db_float,
-        db_blob,
-        db_null
+        db_integer = SQLITE_INTEGER,
+        db_text = SQLITE_TEXT,
+        db_float = SQLITE_FLOAT,
+        db_blob = SQLITE_BLOB,
+        db_null = SQLITE_NULL
     };
 
 	/**
@@ -84,6 +85,8 @@ namespace ltc
 
             int cols() const;
             std::string name(int col) const;
+
+            Datatype type(int col) const;
 
 #ifdef SQLITE_ENABLE_COLUMN_METADATA
             std::string origin(int col) const;
