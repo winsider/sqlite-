@@ -42,9 +42,11 @@ TEST(Sqlite_db, prepare)
     db.exec("CREATE TABLE test (id int, name varchar);");
     auto s = db.prepare("SELECT * FROM test");
     int count{};
-    for (const auto& v : s.exec_range())
+    s.query([&count](auto& row)
+    {
         count++;
-
+        return true;
+    });
     EXPECT_EQ(count, 0);
 }
 

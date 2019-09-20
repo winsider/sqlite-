@@ -18,8 +18,8 @@ namespace ltc
     enum Datatype
     {
         db_integer = SQLITE_INTEGER,
-        db_text = SQLITE_TEXT,
         db_float = SQLITE_FLOAT,
+        db_text = SQLITE_TEXT,
         db_blob = SQLITE_BLOB,
         db_null = SQLITE_NULL
     };
@@ -51,9 +51,8 @@ namespace ltc
         using sqlite3_stmt_ptr = std::shared_ptr<sqlite3_stmt>;
 
 	public:
-        class result_range;
-        class row_iterator;
         class row;
+		using Row_callback = std::function<bool(const row&)>;
 
 		Sqlite_stmt() = default;
 		Sqlite_stmt(const Sqlite_stmt&) = default;
@@ -67,11 +66,11 @@ namespace ltc
          */
 		class row final
 		{
-			friend class row_iterator;
+			friend class Sqlite_stmt;
 
 		public:
 			row() = delete;
-			row(const row&) = default;
+			row(const row&) = delete;
             ~row() = default;
 			row(row&&) = delete;
 
@@ -97,53 +96,7 @@ namespace ltc
 		private:
 			row(sqlite3_stmt_ptr stmt);
             sqlite3_stmt* handle() const;
-            void reset();
             sqlite3_stmt_ptr m_stmt;
-		};
-
-        /**
-         * Result row iterator
-         */
-		class row_iterator final
-		{
-		public:
-            bool operator==(const row_iterator& iter) const;
-            bool operator!=(const row_iterator& iter) const;
-            row_iterator& operator++();
-            row* operator->();
-            row& operator*();
-
-		private:
-			friend result_range;
-
-            row_iterator();
-            row_iterator(sqlite3_stmt_ptr stmt);
-            void step();
-            sqlite3_stmt* handle() const;
-
-			row m_row;
-			int m_result_code;
-		};
-
-        /**
-         * Result wrapper
-         */
-		class result_range final
-		{
-			friend Sqlite_stmt;
-
-		public:
-			result_range() = default;
-			result_range(const result_range&) = default;
-			result_range(result_range&&) = default;
-			result_range& operator=(const result_range&) = default;
-			result_range& operator=(result_range&&) = default;
-            row_iterator begin();
-            const row_iterator end() const;
-
-		private:
-			result_range(sqlite3_stmt_ptr stmt) : m_stmt{ std::move(stmt) } {}
-			sqlite3_stmt_ptr m_stmt;
 		};
 
         void exec();
@@ -163,21 +116,21 @@ namespace ltc
             exec();
         }
 
-        result_range exec_range();
+        void query(Row_callback cb);
 
 		template<typename T>
-		result_range exec_range(T t)
+		void query(Row_callback cb, T t)
 		{
 			bind(1, t);
-			return exec_range();
+			query(cb);
 		}
 
 		template <typename T, typename... Args>
-		result_range exec_range(T t, Args... args)
+		void query(Row_callback cb, T t, Args... args)
 		{
 			bind(1, t);
 			bind(2, args...);
-			return exec_range();
+			query(cb);
 		}
 
 	private:

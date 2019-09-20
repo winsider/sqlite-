@@ -15,10 +15,12 @@ TEST(Sqlite_stmt, exec_one_par)
     insert.exec(1);
     insert.exec(2);
     int found = 0;
-    for (const auto& row : db.prepare("select * from test where id<=?").exec_range(2))
-    {
-        found++;
-    }
+    db.prepare("select * from test where id<=?")
+        .query([&found](auto& row)
+        {
+            found++;
+            return true;
+        }, 2);
     EXPECT_EQ(found, 2);
 }
 
@@ -32,10 +34,13 @@ TEST(Sqlite_stmt, exec_two_par)
     insert.exec(1, "One");
     insert.exec(2, "Two");
     int found = 0;
-    for (const auto& row : db.prepare("select * from test where id>=? and id<=?").exec_range(1, 2))
-    {
-        found++;
-    }
+    db.prepare("select * from test where id>=? and id<=?")
+        .query([&found](auto& row)
+        {
+            found++;
+            return true;
+        }, 1, 2);
+
     EXPECT_EQ(found, 2);
 }
 
@@ -48,10 +53,14 @@ TEST(Sqlite_stmt, exec_three_par)
     insert.exec(1, "One", 1.0f);
     insert.exec(2, "Two", 2.0f);
     int found = 0;
-    for (const auto& row : db
+    db
         .prepare("select * from test where id>=? and id<=? and value<?")
-        .exec_range(1, 2, 10.0f))
-        found++;
+        .query([&found](auto& row)
+        {
+            found++;
+            return true;
+        }, 1, 2, 10.0f);
+
     EXPECT_EQ(found, 2);
 }
 
@@ -65,14 +74,15 @@ TEST(Sqlite_stmt, is_null)
     insert.exec(2, "Two", Null);
     int found = 0;
     int found_nulls = 0;
-    for (const auto& row : db
-        .prepare("select * from test where id>=? and id<=? and value is null")
-        .exec_range(1, 2))
-    {
-        found++;
-        if (row.is_null(2))
-            found_nulls++;
-    }
+    db.prepare("select * from test where id>=? and id<=? and value is null")
+        .query([&found,&found_nulls](auto& row)
+        {
+            ++found;
+            if (row.is_null(2))
+                found_nulls++;
+            return true;
+        }, 1, 2);
+
     EXPECT_EQ(found, 2);
 }
 
@@ -85,14 +95,14 @@ TEST(Sqlite_stmt, type)
     insert.exec(1, "One", Null);
     insert.exec(2, "Two", Null);
     int found = 0;
-    for (const auto& row : db
-        .prepare("select * from test where id>=? and id<=? and value is null")
-        .exec_range(1, 2))
-    {
-        found++;
-        EXPECT_EQ(row.type(0), Datatype::db_integer);
-        EXPECT_EQ(row.type(1), Datatype::db_text);
-        EXPECT_EQ(row.type(2), Datatype::db_null);
-    }
+    db.prepare("select * from test where id>=? and id<=? and value is null")
+        .query([&found](auto& row)
+        {
+            found++;
+            EXPECT_EQ(row.type(0), Datatype::db_integer);
+            EXPECT_EQ(row.type(1), Datatype::db_text);
+            EXPECT_EQ(row.type(2), Datatype::db_null);
+            return true;
+        }, 1, 2);
     EXPECT_EQ(found, 2);
 }

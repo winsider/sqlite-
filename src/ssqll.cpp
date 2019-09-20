@@ -75,9 +75,15 @@ void Sqlite_stmt::exec()
         throw Sqlite_err(result_code);
 }
 
-Sqlite_stmt::result_range Sqlite_stmt::exec_range()
+void Sqlite_stmt::query(Row_callback cb)
 {
-    return result_range(m_stmt);
+    int result_code;
+    Sqlite_stmt::row row(m_stmt);
+    while ((result_code = sqlite3_step(handle()))==SQLITE_ROW)
+    {
+        if (!cb(row))
+            break;
+    }   
 }
 
 
@@ -161,88 +167,6 @@ Datatype Sqlite_stmt::row::type(int col) const
     return static_cast<Datatype>(sqlite3_column_type(handle(), col));
 }
 
-void Sqlite_stmt::row::reset()
-{
-    m_stmt.reset();
-}
-
-// Sqlite_stmt::row_iterator
-
-bool Sqlite_stmt::row_iterator::operator==(const row_iterator& iter) const
-{
-    return (iter.handle() == handle() && iter.m_result_code == m_result_code);
-}
-
-bool Sqlite_stmt::row_iterator::operator!=(const row_iterator& iter) const
-{
-    return !(*this == iter);
-}
-
-Sqlite_stmt::row_iterator& Sqlite_stmt::row_iterator::operator++()
-{
-    step();
-    return *this;
-}
-
-Sqlite_stmt::row* Sqlite_stmt::row_iterator::operator->()
-{
-    if (m_result_code == SQLITE_ROW)
-        return &m_row;
-    else
-        throw invalid_operation();
-}
-
-Sqlite_stmt::row& Sqlite_stmt::row_iterator::operator*()
-{
-    if (m_result_code == SQLITE_ROW)
-        return m_row;
-    else
-        throw invalid_operation();
-}
-
-Sqlite_stmt::row_iterator::row_iterator() : m_row{ nullptr }
-{
-    m_result_code = SQLITE_DONE;
-}
-
-Sqlite_stmt::row_iterator::row_iterator(sqlite3_stmt_ptr stmt) : m_row{ std::move(stmt) }
-{
-    step();
-}
-
-sqlite3_stmt* Sqlite_stmt::row_iterator::handle() const
-{
-    return m_row.handle();
-}
-
-void Sqlite_stmt::row_iterator::step()
-{
-    if (!handle())
-        throw invalid_operation();
-
-    m_result_code = sqlite3_step(handle());
-
-    if (m_result_code == SQLITE_DONE)
-        m_row.reset();
-    else if (m_result_code != SQLITE_ROW)
-        throw Sqlite_err(m_result_code, sqlite3_errstr(m_result_code));
-}
-
-
-// Sqlite::stmt::result_range
-
-Sqlite_stmt::row_iterator Sqlite_stmt::result_range::begin()
-{
-    auto it = Sqlite_stmt::row_iterator(m_stmt);
-    m_stmt.reset();
-    return it;
-}
-
-const Sqlite_stmt::row_iterator Sqlite_stmt::result_range::end() const
-{
-    static row_iterator end{};
-    return end;
-}
 
 // Sqlite_db
 
