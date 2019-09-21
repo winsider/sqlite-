@@ -4,10 +4,13 @@
 #include <functional>
 #include <vector>
 #include <memory>
-#include <sqlite3.h>
+
+struct sqlite3_stmt;
+struct sqlite3;
 
 namespace ltc
 {
+
 	/// Database NULL value
 	constexpr struct SqlNull {} Null;
 
@@ -169,23 +172,22 @@ namespace ltc
 		Sqlite_db() = default;
 		Sqlite_db(const Sqlite_db&) = default;
 		Sqlite_db(Sqlite_db&&) = default;
-        Sqlite_db(const char* filename);
+		Sqlite_db(const std::string& filename);
 		~Sqlite_db() = default;
 		Sqlite_db& operator=(const Sqlite_db&) = default;
 		Sqlite_db& operator=(Sqlite_db&&) = default;
 
-        void open(const char* filename);
+		void open(const std::string& filename);
         void close();
         void exec(const char* sql, Callback callback);
-        void exec(const char* sql);
-        Sqlite_stmt prepare(const std::string sql);
+		void exec(const std::string& sql);
+        Sqlite_stmt prepare(const std::string& sql);
         bool is_open() const;
         int changes() const;
         int total_changes() const;
 
 	private:
         sqlite3* handle() const;
-        void check_error(int result_code, int expected_value = SQLITE_OK) const;
 		std::shared_ptr<sqlite3> m_db;
 	};
 }

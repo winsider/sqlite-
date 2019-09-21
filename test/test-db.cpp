@@ -11,34 +11,47 @@ inline bool file_exists(const std::string& name) {
     return f.good();
 }
 
+class Test_Sqlite_db : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        remove(DbName.c_str());
+    }
 
-TEST(Sqlite_db, open)
+    void TearDown() override
+    {
+        remove(DbName.c_str());
+    }
+
+    std::string DbName{ "test.db" };
+};
+
+TEST_F(Test_Sqlite_db, open)
 {
     remove("test.db");
 	Sqlite_db db("test.db");
 	EXPECT_TRUE(db.is_open());
 }
 
-TEST(Sqlite_db, close)
+TEST_F(Test_Sqlite_db, close)
 {
     {
-        remove("test.db");
-        Sqlite_db db("test.db");
+    	Sqlite_db db(DbName);
         EXPECT_TRUE(db.is_open());
         db.close();
         EXPECT_FALSE(db.is_open());
-        db.open("test.db");
+        db.open(DbName);
     }
 
-    EXPECT_TRUE(file_exists("test.db"));
-    remove("test.db");
-    EXPECT_FALSE(file_exists("test.db"));
+    EXPECT_TRUE(file_exists(DbName));
+    remove(DbName.c_str());
+    EXPECT_FALSE(file_exists(DbName));
 }
 
-TEST(Sqlite_db, prepare)
+TEST_F(Test_Sqlite_db, prepare)
 {
-    remove("test.db");
-    Sqlite_db db("test.db");
+	Sqlite_db db(DbName);
     db.exec("CREATE TABLE test (id int, name varchar);");
     auto s = db.prepare("SELECT * FROM test");
     int count{};
@@ -50,10 +63,9 @@ TEST(Sqlite_db, prepare)
     EXPECT_EQ(count, 0);
 }
 
-TEST(Sqlite_db, exec)
+TEST_F(Test_Sqlite_db, exec)
 {
-    remove("test.db");
-	Sqlite_db db("test.db");
+ 	Sqlite_db db(DbName);
 	db.exec("CREATE TABLE test (id int, name varchar);");
 	db.exec("INSERT INTO test (id, name) values (1, 'Series 1')");
     EXPECT_EQ(db.changes(), 1);
@@ -64,4 +76,16 @@ TEST(Sqlite_db, exec)
     EXPECT_EQ(db.total_changes(), 4);
 }
 
+TEST_F(Test_Sqlite_db, multistep_exec)
+{
+    const char * sql = R"sql(
+        CREATE TABLE test (id int, name varchar);
+        INSERT INTO test (id, name) values (1, 'Series 1');
+        INSERT INTO test (id, name) values (2, 'Serier 2');
+        DELETE FROM test;
+    )sql";
+	Sqlite_db db(DbName);
+	db.exec(sql);
+    EXPECT_EQ(db.total_changes(), 4);
+}
 

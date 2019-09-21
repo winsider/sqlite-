@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <string.h>
+#include <sqlite3.h>
 #include "ssqll/ssqll.h"
 
 using namespace ltc;
@@ -15,6 +16,23 @@ public:
         : std::logic_error("Operaion not allowed in this state.")
     {}
 };
+
+void check_error(sqlite3* db, int result_code, int expected_value)
+{
+    if (result_code != expected_value)
+        throw Sqlite_err(result_code, sqlite3_errmsg(db));
+}
+
+void check_error(int result_code, char*& msg_ptr, int expected_value = SQLITE_OK)
+{
+    if (result_code != expected_value && msg_ptr != nullptr)
+    {
+        std::string err_msg{ msg_ptr };
+        sqlite3_free(msg_ptr);
+        msg_ptr = nullptr;
+        throw Sqlite_err(result_code, err_msg);
+    }
+}
 
 // Sqlite_err
 
@@ -171,29 +189,18 @@ int exec_cb(void* data, int columns, char** values, char** names)
     return cb(columns, values, names);
 }
 
-void check_error(int result_code, char*& msg_ptr, int expected_value = SQLITE_OK)
+Sqlite_db::Sqlite_db(const std::string& filename)
 {
-    if (result_code != expected_value && msg_ptr != nullptr)
-    {
-        std::string err_msg{ msg_ptr };
-        sqlite3_free(msg_ptr);
-        msg_ptr = nullptr;
-        throw Sqlite_err(result_code, err_msg);
-    }
+    open(filename);
 }
 
-Sqlite_db::Sqlite_db(const char* filename)
-{
-    open(filename);    
-}
-
-void Sqlite_db::open(const char* filename)
+void Sqlite_db::open(const std::string& filename)
 {
     if (m_db)
         throw std::logic_error("Close database before calling open again.");
 
     sqlite3* db;
-    check_error(sqlite3_open(filename, &db));
+    ::check_error(db, sqlite3_open(filename.c_str(), &db), SQLITE_OK);
     m_db.reset(db, sqlite3_close);
 }
 
@@ -213,28 +220,22 @@ void Sqlite_db::exec(const char* sql, Callback callback)
     ::check_error(sqlite3_exec(handle(), sql, exec_cb, &callback, &errmsg), errmsg, SQLITE_OK);
 }
 
-void Sqlite_db::exec(const char* sql)
+void Sqlite_db::exec(const std::string& sql)
 {
     char* errmsg;
-    ::check_error(sqlite3_exec(handle(), sql, exec_cb, nullptr, &errmsg), errmsg, SQLITE_OK);
+    ::check_error(sqlite3_exec(handle(), sql.c_str(), exec_cb, nullptr, &errmsg), errmsg, SQLITE_OK);
 }
 
-Sqlite_stmt Sqlite_db::prepare(const std::string sql)
+Sqlite_stmt Sqlite_db::prepare(const std::string& sql)
 {
     sqlite3_stmt* stmt;
-    check_error(sqlite3_prepare_v2(handle(), sql.c_str(), sql.size() + 1, &stmt, nullptr));
+    ::check_error(handle(), sqlite3_prepare_v2(handle(), sql.c_str(), sql.size() + 1, &stmt, nullptr), SQLITE_OK);
     return Sqlite_stmt{ stmt };
 }
 
 sqlite3* Sqlite_db::handle() const
 {
     return m_db.get();
-}
-
-void Sqlite_db::check_error(int result_code, int expected_value) const
-{
-    if (result_code != expected_value)
-        throw Sqlite_err(result_code, sqlite3_errmsg(handle()));
 }
 
 int Sqlite_db::changes() const
