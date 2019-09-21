@@ -20,19 +20,14 @@ public:
 
 Sqlite_err::Sqlite_err(int result_code)
     : m_result_code{ result_code }
-    , m_what{ error_code_str() }
+    , std::runtime_error(error_code_str())
 {
 }
 
 Sqlite_err::Sqlite_err(int result_code, std::string what)
 		: m_result_code{ result_code }
-		, m_what{ std::move(what) }
+		, std::runtime_error(what)
 {
-}
-
-const char* Sqlite_err::what() const noexcept
-{
-	return m_what.c_str();
 }
 
 int Sqlite_err::error_code() const noexcept

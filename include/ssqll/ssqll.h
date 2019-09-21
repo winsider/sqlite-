@@ -17,28 +17,26 @@ namespace ltc
     /// Enum mapping to SQLITE datatype constants
     enum Datatype
     {
-        db_integer = SQLITE_INTEGER,
-        db_float = SQLITE_FLOAT,
-        db_text = SQLITE_TEXT,
-        db_blob = SQLITE_BLOB,
-        db_null = SQLITE_NULL
+        db_integer = 1, // SQLITE_INTEGER
+        db_float   = 2, // SQLITE_FLOAT
+        db_text    = 3, // SQLITE_TEXT
+        db_blob    = 4, // SQLITE_BLOB
+        db_null    = 5  // SQLITE_NULL
     };
 
 	/**
 	 * Exception class for SQLITE error return codes 
 	 */
-	class Sqlite_err final : public std::exception
+	class Sqlite_err final : public std::runtime_error
 	{
 	public:
         Sqlite_err(int result_code);
 		Sqlite_err(int result_code, std::string what);
-		const char* what() const noexcept override;
 		int error_code() const noexcept;
 		const char* error_code_str() const noexcept;
 
 	private:
 		int m_result_code;
-		std::string m_what;
 	};
 
 
