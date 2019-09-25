@@ -74,6 +74,8 @@ namespace ltc
 			row(const row&) = delete;
             ~row() = default;
 			row(row&&) = delete;
+			row& operator=(const row&) = delete;
+			row& operator=(row&&) = delete;
 
 			int         as_int(int col) const;
 			long long   as_int64(int col) const;
@@ -95,9 +97,8 @@ namespace ltc
 #endif
 
 		private:
-			row(sqlite3_stmt_ptr stmt);
-            sqlite3_stmt* handle() const;
-            sqlite3_stmt_ptr m_stmt;
+			row(sqlite3_stmt* stmt);
+            sqlite3_stmt* m_handle;
 		};
 
         void exec();
