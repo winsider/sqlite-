@@ -7,6 +7,7 @@ set(SOURCES
 add_library(ssqll ${SOURCES})
 target_include_directories(ssqll PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(ssqll PRIVATE ${CMAKE_SOURCE_DIR}/build/sqlite-src)
+target_include_directories(ssqll PRIVATE ${CMAKE_SOURCE_DIR}/build/release/sqlite-src)
 target_link_libraries(ssqll sqlite3 ${CMAKE_DL_LIBS})
 set_property(TARGET ssqll PROPERTY CXX_STANDARD 14)
 
