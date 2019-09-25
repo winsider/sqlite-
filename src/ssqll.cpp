@@ -91,93 +91,88 @@ void Sqlite_stmt::exec()
 void Sqlite_stmt::query(Row_callback cb)
 {
     int result_code;
-    Sqlite_stmt::row row(m_stmt);
-    while ((result_code = sqlite3_step(handle()))==SQLITE_ROW)
-    {
-        if (!cb(row))
-            break;
-    }   
+    Sqlite_stmt::row row(m_stmt.get());
+    while (((result_code = sqlite3_step(handle()))==SQLITE_ROW)
+        && cb(row));
+
+    if (result_code != SQLITE_DONE && result_code != SQLITE_ROW)
+        throw Sqlite_err(result_code);
 }
 
 
 // Sqlite_stmt::row
-Sqlite_stmt::row::row(sqlite3_stmt_ptr stmt) 
-	: m_stmt(std::move(stmt)) 
+Sqlite_stmt::row::row(sqlite3_stmt* stmt) 
+	: m_handle(stmt) 
 {}
-
-sqlite3_stmt* ltc::Sqlite_stmt::row::handle() const
-{
-    return m_stmt.get();
-}
 
 int Sqlite_stmt::row::cols() const
 {
-    return sqlite3_column_count(handle());
+    return sqlite3_column_count(m_handle);
 }
 
 std::string Sqlite_stmt::row::name(int col) const
 {
-    return std::string{ sqlite3_column_name(handle(), col) };
+    return std::string{ sqlite3_column_name(m_handle, col) };
 }
 
 #ifdef SQLITE_ENABLE_COLUMN_METADATA
 std::string Sqlite_stmt::row::origin(int col) const
 {
-    return std::string{ sqlite3_column_origin_name(handle(), col) };
+    return std::string{ sqlite3_column_origin_name(m_handle, col) };
 }
 #endif
 
 #ifdef SQLITE_ENABLE_COLUMN_METADATA
 std::string Sqlite_stmt::row::dbname(int col) const
 {
-    return std::string{ sqlite3_column_database_name(handle(), col) };
+    return std::string{ sqlite3_column_database_name(m_handle, col) };
 }
 #endif
 
 #ifdef SQLITE_ENABLE_COLUMN_METADATA
 std::string Sqlite_stmt::row::table(int col) const
 {
-    return std::string{ sqlite3_column_table_name(handle(), col) };
+    return std::string{ sqlite3_column_table_name(m_handle, col) };
 }
 #endif
 
 int Sqlite_stmt::row::as_int(int col) const
 {
-	return sqlite3_column_int(handle(), col);
+	return sqlite3_column_int(m_handle, col);
 }
 
 long long Sqlite_stmt::row::as_int64(int col) const
 {
-	return sqlite3_column_int64(handle(), col);
+	return sqlite3_column_int64(m_handle, col);
 }
 
 double Sqlite_stmt::row::as_double(int col) const
 {
-	return sqlite3_column_double(handle(), col);
+	return sqlite3_column_double(m_handle, col);
 }
 
 std::string Sqlite_stmt::row::as_string(int col) const
 {
-	const auto len = sqlite3_column_bytes(handle(), col);
-	const auto buf = sqlite3_column_text(handle(), col);
+	const auto len = sqlite3_column_bytes(m_handle, col);
+	const auto buf = sqlite3_column_text(m_handle, col);
 	return (buf && len) ? std::string(reinterpret_cast<const char*>(buf), len) : std::string{};
 }
 
 Blob Sqlite_stmt::row::as_blob(int col) const
 {
-	const auto len = sqlite3_column_bytes(handle(), col);
-	const auto buf = sqlite3_column_text(handle(), col);
+	const auto len = sqlite3_column_bytes(m_handle, col);
+	const auto buf = sqlite3_column_text(m_handle, col);
 	return (buf && len) ? Blob(buf, buf + len) : Blob{};
 }
 
 bool Sqlite_stmt::row::is_null(int col) const
 {
-    return sqlite3_column_type(handle(), col) == SQLITE_NULL;
+    return sqlite3_column_type(m_handle, col) == SQLITE_NULL;
 }
 
 Datatype Sqlite_stmt::row::type(int col) const
 {
-    return static_cast<Datatype>(sqlite3_column_type(handle(), col));
+    return static_cast<Datatype>(sqlite3_column_type(m_handle, col));
 }
 
 
