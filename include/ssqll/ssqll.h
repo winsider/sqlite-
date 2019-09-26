@@ -221,7 +221,7 @@ namespace ltc
 
 		void open(const std::string& filename);
         void close();
-        void exec(const std::string& sql, Callback callback);
+        void query(const std::string& sql, Callback callback);
 		void exec(const std::string& sql);
         Sqlite_stmt prepare(const std::string& sql);
         bool is_open() const;

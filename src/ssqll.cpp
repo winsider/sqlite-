@@ -211,7 +211,7 @@ void Sqlite_db::close()
     m_db.reset();
 }
 
-void Sqlite_db::exec(const std::string& sql, Callback callback)
+void Sqlite_db::query(const std::string& sql, Callback callback)
 {
     auto stmt = prepare(sql);
     stmt.query(callback);
