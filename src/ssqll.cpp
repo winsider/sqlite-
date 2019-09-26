@@ -83,6 +83,7 @@ void Sqlite_stmt::bind(int c, const Blob& v)	        { sqlite3_bind_blob(handle(
 
 void Sqlite_stmt::exec()
 {
+    sqlite3_reset(handle());
     const int result_code = sqlite3_step(handle());
     if (result_code != SQLITE_DONE)
         throw Sqlite_err(result_code);

@@ -6,10 +6,27 @@
 
 using namespace ltc;
 
-TEST(Sqlite_stmt, exec_one_par)
+class Test_Sqlite_stmt : public ::testing::Test
 {
-    remove("test.db");
-    Sqlite_db db("test.db");
+protected:
+    void SetUp() override
+    {
+        remove(DbName.c_str());
+    }
+
+    void TearDown() override
+    {
+        remove(DbName.c_str());
+    }
+
+    std::string DbName{ "test.db" };
+};
+
+
+
+TEST_F(Test_Sqlite_stmt, exec_one_par)
+{
+    Sqlite_db db(DbName);
     db.exec("CREATE TABLE IF NOT EXISTS test (id int);");
     auto insert = db.prepare("INSERT INTO test (id) values (?)");
     insert.exec(1);
@@ -25,10 +42,9 @@ TEST(Sqlite_stmt, exec_one_par)
 }
 
 
-TEST(Sqlite_stmt, exec_two_par)
+TEST_F(Test_Sqlite_stmt, exec_two_par)
 {
-    remove("test.db");
-    Sqlite_db db("test.db");
+    Sqlite_db db(DbName);
     db.exec("CREATE TABLE IF NOT EXISTS test (id int, name varchar);");
     auto insert = db.prepare("INSERT INTO test (id, name) values (?, ?)");
     insert.exec(1, "One");
@@ -44,10 +60,9 @@ TEST(Sqlite_stmt, exec_two_par)
     EXPECT_EQ(found, 2);
 }
 
-TEST(Sqlite_stmt, exec_three_par)
+TEST_F(Test_Sqlite_stmt, exec_three_par)
 {
-    remove("test.db");
-    Sqlite_db db("test.db");
+    Sqlite_db db(DbName);
     db.exec("CREATE TABLE IF NOT EXISTS test (id int, name varchar, value real);");
     auto insert = db.prepare("INSERT INTO test (id, name, value) values (?, ?, ?)");
     insert.exec(1, "One", 1.0f);
@@ -64,10 +79,9 @@ TEST(Sqlite_stmt, exec_three_par)
     EXPECT_EQ(found, 2);
 }
 
-TEST(Sqlite_stmt, is_null)
+TEST_F(Test_Sqlite_stmt, is_null)
 {
-    remove("test.db");
-    Sqlite_db db("test.db");
+    Sqlite_db db(DbName);
     db.exec("CREATE TABLE IF NOT EXISTS test (id int, name varchar, value real);");
     auto insert = db.prepare("INSERT INTO test (id, name, value) values (?, ?, ?)");
     insert.exec(1, "One", Null);
@@ -86,10 +100,9 @@ TEST(Sqlite_stmt, is_null)
     EXPECT_EQ(found, 2);
 }
 
-TEST(Sqlite_stmt, type)
+TEST_F(Test_Sqlite_stmt, type)
 {
-    remove("test.db");
-    Sqlite_db db("test.db");
+    Sqlite_db db(DbName);
     db.exec("CREATE TABLE IF NOT EXISTS test (id int, name varchar, value real);");
     auto insert = db.prepare("INSERT INTO test (id, name, value) values (?, ?, ?)");
     insert.exec(1, "One", Null);
@@ -105,4 +118,26 @@ TEST(Sqlite_stmt, type)
             return true;
         }, 1, 2);
     EXPECT_EQ(found, 2);
+}
+
+TEST_F(Test_Sqlite_stmt, scalar)
+{
+    Sqlite_db db(DbName);
+    db.exec("CREATE TABLE IF NOT EXISTS test (id int, name varchar, value real);");
+    auto insert = db.prepare("INSERT INTO test (id, name, value) values (?, ?, ?)");
+    insert.exec(1, "One", 1.0);
+    insert.exec(2, "Two", 2.0);
+
+    // auto count = db.prepare("SELECT COUNT(*) FROM TEST");
+    // int count1;
+    // const auto countOK = count.scalar(count1);
+    // ASSERT_TRUE(countOK); 
+    // ASSERT_EQ(count1, 2);
+
+    // auto max1 = db.prepare("SELECT MAX(id) FROM TEST WHERE id<?");
+    // EXPECT_EQ(max1.scalar_int(3), 2);
+    // EXPECT_EQ(max1.scalar_int(2), 1);
+
+    // auto max2 = db.prepare("SELECT MAX(id) FROM Test");
+    // EXPECT_EQ(max2.scalar_int(), 1);
 }

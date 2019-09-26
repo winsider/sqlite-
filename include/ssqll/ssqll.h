@@ -135,6 +135,47 @@ namespace ltc
 			query(cb);
 		}
 
+		bool scalar_int();
+
+		template <typename T>
+		bool scalar(int& value, T t)
+		{
+			int32_t retval;
+			const auto cb = [&retval](const row& row)
+			{
+				retval = row.as_int(0);
+				return true;
+			};
+			query(cb, t);
+			return retval;
+		}
+
+		template <typename T, typename... Args>
+		int32_t scalar_int(T t, Args... args)
+		{
+			int32_t retval;
+			const auto cb = [&retval](const row& row)
+			{
+				retval = row.as_int(0);
+				return true;
+			};
+			query(cb, t, args...);
+			return retval;
+		}
+		
+		template <typename T, typename... Args>
+		int64_t scalar_int64(Args... args)
+		{
+			int64_t retval;
+			const auto cb = [&retval](row& row)
+			{
+				retval = row.as_int64(0);
+				return false;
+			};
+			query(cb, args...);
+			return retval;
+		}
+
 	private:
 		friend class Sqlite_db;        
 		Sqlite_stmt(sqlite3_stmt* stmt);
