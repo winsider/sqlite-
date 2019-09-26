@@ -4,7 +4,6 @@ Roadmap:
 - Namespace? ltc::sql ?
 - Change name of src folder?
 - Split into multiple files?
-- bug with reset() for statements
 - documentation for methos
 - Allow for multistep opers
 - Use static for funtions in cpp?

@@ -91,8 +91,9 @@ void Sqlite_stmt::exec()
 
 void Sqlite_stmt::query(Row_callback cb)
 {
-    int result_code;
+    sqlite3_reset(handle());
     Sqlite_stmt::row row(m_stmt.get());
+    int result_code;
     while (((result_code = sqlite3_step(handle()))==SQLITE_ROW)
         && cb(row));
 
