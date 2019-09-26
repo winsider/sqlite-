@@ -9,31 +9,6 @@
 using namespace ltc;
 
 
-class invalid_operation : std::logic_error
-{
-public:
-    invalid_operation()
-        : std::logic_error("Operaion not allowed in this state.")
-    {}
-};
-
-void check_error(sqlite3* db, int result_code, int expected_value)
-{
-    if (result_code != expected_value)
-        throw Sqlite_err(result_code, sqlite3_errmsg(db));
-}
-
-void check_error(int result_code, char*& msg_ptr, int expected_value = SQLITE_OK)
-{
-    if (result_code != expected_value && msg_ptr != nullptr)
-    {
-        std::string err_msg{ msg_ptr };
-        sqlite3_free(msg_ptr);
-        msg_ptr = nullptr;
-        throw Sqlite_err(result_code, err_msg);
-    }
-}
-
 // Sqlite_err
 
 Sqlite_err::Sqlite_err(int result_code)
@@ -56,6 +31,23 @@ int Sqlite_err::error_code() const noexcept
 const char* Sqlite_err::error_code_str() const noexcept
 {
 	return sqlite3_errstr(m_result_code);
+}
+
+void check_error(sqlite3* db, int result_code, int expected_value)
+{
+    if (result_code != expected_value)
+        throw Sqlite_err(result_code, sqlite3_errmsg(db));
+}
+
+void check_error(int result_code, char*& msg_ptr, int expected_value = SQLITE_OK)
+{
+    if (result_code != expected_value && msg_ptr != nullptr)
+    {
+        std::string err_msg{ msg_ptr };
+        sqlite3_free(msg_ptr);
+        msg_ptr = nullptr;
+        throw Sqlite_err(result_code, err_msg);
+    }
 }
 
 
@@ -180,6 +172,10 @@ Datatype Sqlite_stmt::row::type(int col) const
 
 // Sqlite_db
 
+const std::string Sqlite_db::BEGIN_TRANSACTION    = "BEGIN TRANSACTION";
+const std::string Sqlite_db::COMMIT_TRANSACTION   = "COMMIT TRANSACTION"; 
+const std::string Sqlite_db::ROLLBACK_TRANSACTION = "ROLLBACK TRANSACTION";
+
 int exec_cb(void* data, int columns, char** values, char** names)
 {
     std::function<bool(int, char**, char**)> cb = *static_cast<std::function<bool(int, char**, char**)>*>(data);
@@ -243,4 +239,22 @@ int Sqlite_db::changes() const
 int Sqlite_db::total_changes() const
 {
     return sqlite3_total_changes(handle());
+}
+
+void Sqlite_db::transaction(std::function<bool(Sqlite_db&)> cb)
+{
+    exec(BEGIN_TRANSACTION);
+    try
+    {
+        if (cb(*this))
+            exec(COMMIT_TRANSACTION);
+        else
+            exec(ROLLBACK_TRANSACTION);
+    }
+    catch(const Sqlite_err&)
+    {
+        exec(ROLLBACK_TRANSACTION);
+        throw;
+    }
+    
 }

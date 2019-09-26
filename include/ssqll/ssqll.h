@@ -228,6 +228,12 @@ namespace ltc
         int changes() const;
         int total_changes() const;
 
+		void transaction(std::function<bool(Sqlite_db&)> cb);
+
+		static const std::string BEGIN_TRANSACTION;
+		static const std::string COMMIT_TRANSACTION;
+		static const std::string ROLLBACK_TRANSACTION;
+
 	private:
         sqlite3* handle() const;
 		std::shared_ptr<sqlite3> m_db;

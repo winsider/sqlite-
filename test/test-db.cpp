@@ -96,10 +96,44 @@ TEST_F(Test_Sqlite_db, exec_cb)
 	db.exec("INSERT INTO test (id, name) values (1, 'Series 1')");
     db.exec("INSERT INTO test (id, name) values (2, 'Serier 2')");
     int count = 0;
-    db.exec("SELECT * FROM test", [&count](auto& row)
+    db.query("SELECT * FROM test", [&count](auto& row)
     { 
         ++count; 
         return true;
     });
     EXPECT_EQ(count, 2);
+}
+
+TEST_F(Test_Sqlite_db, transaction)
+{
+    Sqlite_db db(DbName);
+	db.exec("CREATE TABLE test (id int, name varchar);");
+
+    db.transaction([](auto& db)
+    {
+        db.exec("INSERT INTO test (id, name) values (1, 'Series 1')");
+        db.exec("INSERT INTO test (id, name) values (2, 'Serier 2')");
+        return false; // ROLLBACK
+    });
+    int count = 0;
+    db.query("SELECT * FROM test", [&count](auto& row)
+    { 
+        ++count; 
+        return true;
+    });
+    EXPECT_EQ(count, 0);
+
+    db.transaction([](auto& db)
+    {
+        db.exec("INSERT INTO test (id, name) values (1, 'Series 1')");
+        db.exec("INSERT INTO test (id, name) values (2, 'Serier 2')");
+        return true; // COMMIT
+    });
+    int count2 = 0;
+    db.query("SELECT * FROM test", [&count2](auto& row)
+    { 
+        ++count2; 
+        return true;
+    });
+    EXPECT_EQ(count2, 2);
 }
