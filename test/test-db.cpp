@@ -89,3 +89,17 @@ TEST_F(Test_Sqlite_db, multistep_exec)
     EXPECT_EQ(db.total_changes(), 4);
 }
 
+TEST_F(Test_Sqlite_db, exec_cb)
+{
+    Sqlite_db db(DbName);
+	db.exec("CREATE TABLE test (id int, name varchar);");
+	db.exec("INSERT INTO test (id, name) values (1, 'Series 1')");
+    db.exec("INSERT INTO test (id, name) values (2, 'Serier 2')");
+    int count = 0;
+    db.exec("SELECT * FROM test", [&count](auto& row)
+    { 
+        ++count; 
+        return true;
+    });
+    EXPECT_EQ(count, 2);
+}

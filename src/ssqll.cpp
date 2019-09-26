@@ -211,10 +211,10 @@ void Sqlite_db::close()
     m_db.reset();
 }
 
-void Sqlite_db::exec(const char* sql, Callback callback)
+void Sqlite_db::exec(const std::string& sql, Callback callback)
 {
-    char* errmsg;
-    ::check_error(sqlite3_exec(handle(), sql, exec_cb, &callback, &errmsg), errmsg, SQLITE_OK);
+    auto stmt = prepare(sql);
+    stmt.query(callback);
 }
 
 void Sqlite_db::exec(const std::string& sql)
