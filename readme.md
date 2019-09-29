@@ -8,5 +8,5 @@ Roadmap:
 - Use static for funtions in cpp?
 - scalar()
 - Check return codes in statement methods
-- Restructure builds:
+* Restructure builds:
   https://stackoverflow.com/questions/7724569/debug-vs-release-in-cmake

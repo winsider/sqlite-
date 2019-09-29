@@ -8,7 +8,6 @@
 
 using namespace ltc;
 
-
 // Sqlite_err
 
 Sqlite_err::Sqlite_err(int result_code)
@@ -172,9 +171,12 @@ Datatype Sqlite_stmt::row::type(int col) const
 
 // Sqlite_db
 
-const std::string Sqlite_db::BEGIN_TRANSACTION    = "BEGIN TRANSACTION";
-const std::string Sqlite_db::COMMIT_TRANSACTION   = "COMMIT TRANSACTION"; 
-const std::string Sqlite_db::ROLLBACK_TRANSACTION = "ROLLBACK TRANSACTION";
+namespace 
+{
+    static const std::string BEGIN_TRANSACTION    = "BEGIN TRANSACTION";
+    static const std::string COMMIT_TRANSACTION   = "COMMIT TRANSACTION"; 
+    static const std::string ROLLBACK_TRANSACTION = "ROLLBACK TRANSACTION";
+}
 
 int exec_cb(void* data, int columns, char** values, char** names)
 {
