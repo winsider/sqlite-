@@ -109,7 +109,7 @@ TEST_F(Test_Sqlite_db, transaction)
     Sqlite_db db(DbName);
 	db.exec("CREATE TABLE test (id int, name varchar);");
 
-    db.transaction([](auto& db)
+    db.transaction([&db]()
     {
         db.exec("INSERT INTO test (id, name) values (1, 'Series 1')");
         db.exec("INSERT INTO test (id, name) values (2, 'Serier 2')");
@@ -123,7 +123,7 @@ TEST_F(Test_Sqlite_db, transaction)
     });
     EXPECT_EQ(count, 0);
 
-    db.transaction([](auto& db)
+    db.transaction([&db]()
     {
         db.exec("INSERT INTO test (id, name) values (1, 'Series 1')");
         db.exec("INSERT INTO test (id, name) values (2, 'Serier 2')");

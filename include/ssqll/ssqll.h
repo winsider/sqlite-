@@ -228,7 +228,7 @@ namespace ltc
         int changes() const;
         int total_changes() const;
 
-		void transaction(std::function<bool(Sqlite_db&)> cb);
+		void transaction(std::function<bool()> cb);
 
 	private:
         sqlite3* handle() const;

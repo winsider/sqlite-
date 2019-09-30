@@ -243,12 +243,12 @@ int Sqlite_db::total_changes() const
     return sqlite3_total_changes(handle());
 }
 
-void Sqlite_db::transaction(std::function<bool(Sqlite_db&)> cb)
+void Sqlite_db::transaction(std::function<bool()> cb)
 {
     exec(BEGIN_TRANSACTION);
     try
     {
-        if (cb(*this))
+        if (cb())
             exec(COMMIT_TRANSACTION);
         else
             exec(ROLLBACK_TRANSACTION);
